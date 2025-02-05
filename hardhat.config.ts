@@ -3,8 +3,10 @@ import "@nomicfoundation/hardhat-toolbox";
 import { task } from "hardhat/config";
 import fs from "fs";
 import path from "path";
+
 import * as dotenv from "dotenv";
 dotenv.config();
+dotenv.config({ path: `.env.local`, override: true });
 
 // Custom task to clean generated files
 task("clean", "Cleans the cache and deletes all artifacts", async (_, hre) => {
@@ -40,11 +42,19 @@ const config: HardhatUserConfig = {
   networks: {
     localhost: {
       url: "http://localhost:8545",
-      accounts: process.env.PRIVATE_KEY ? [`0x${process.env.PRIVATE_KEY}`] : [],
+      accounts: process.env.BESU_PRIVATE_KEY
+        ? [`0x${process.env.BESU_PRIVATE_KEY}`]
+        : [],
     },
     besu: {
       url: process.env.BESU_NETWORK_URL || "",
-      accounts: process.env.PRIVATE_KEY ? [`0x${process.env.PRIVATE_KEY}`] : [],
+      accounts: process.env.BESU_PRIVATE_KEY
+        ? [`0x${process.env.BESU_PRIVATE_KEY}`]
+        : [],
+    },
+    sepolia: {
+      url: `${process.env.SEPOLIA_NETWORK_URL}${process.env.ALCHEMY_API_KEY}`,
+      accounts: [process.env.SEPOLIA_PRIVATE_KEY ?? ""],
     },
   },
   ignition: {
