@@ -7,7 +7,7 @@ import {
   ResourceCertification,
   ResourcesSharingAgreement,
   RsaEnumerator,
-  RsaUtils,
+  Utils,
 } from "../typechain-types";
 
 describe("ResourcesSharingAgreement", function () {
@@ -61,15 +61,15 @@ describe("ResourcesSharingAgreement", function () {
       registries.getAddress()
     );
 
-    const RsaUtils = await ethers.getContractFactory("RsaUtils");
-    const rsaUtils = await RsaUtils.deploy();
+    const utilsFactory = await ethers.getContractFactory("Utils");
+    const utils = await utilsFactory.deploy();
 
     // Deploy the ResourceSharingAgreement contract
     const RSAFactory = await ethers.getContractFactory(
       "ResourcesSharingAgreement"
     );
     resourceSharingAgreement = await RSAFactory.deploy(
-      rsaUtils.getAddress(),
+      utils.getAddress(),
       registries.getAddress(),
       resourceCertification.getAddress()
     );
@@ -78,7 +78,7 @@ describe("ResourcesSharingAgreement", function () {
       "RsaEnumerator"
     );
     rsaEnumerator = await RsaEnumeratorFactory.deploy(
-      rsaUtils.getAddress(),
+      utils.getAddress(),
       resourceSharingAgreement.getAddress()
     );
 

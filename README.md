@@ -26,7 +26,7 @@ Note: To run with a different account run with "PRIVATE_KEY=<OTHER_PRIVATE_KEY> 
 
 5) Copy contract address to RESOURCE_CERTIFICATION_ADDRESS var in .env
 
-6) Run - npx hardhat ignition deploy ./ignition/modules/RsaUtils.ts --network besu
+6) Run - npx hardhat ignition deploy ./ignition/modules/Utils.ts --network besu
 
 7) Copy contract address to RSA_UTILS_ADDRESS var in .env
 
@@ -54,7 +54,7 @@ Note: To run with a different account run with "PRIVATE_KEY=<OTHER_PRIVATE_KEY> 
 
 5) Copy contract address to RESOURCE_CERTIFICATION_ADDRESS var in .env
 
-6) Run - npx hardhat ignition deploy ./ignition/modules/RsaUtils.ts --network sepolia
+6) Run - npx hardhat ignition deploy ./ignition/modules/Utils.ts --network sepolia
 
 7) Copy contract address to RSA_UTILS_ADDRESS var in .env
 

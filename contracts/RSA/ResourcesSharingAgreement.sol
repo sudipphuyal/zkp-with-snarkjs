@@ -1,7 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "./RsaUtils.sol";
+interface IUtils {
+    function generateRsaId(
+        address _provider,
+        address _recipient,
+        string memory _recipientEmail
+    ) external pure returns (bytes20);
+
+    function getDurationInSeconds(
+        string memory _duration
+    ) external view returns (uint256);
+
+    function generateAssignmentId(
+        bytes20 _rsaId,
+        uint256 _timestamp,
+        uint256 _blockNumber
+    ) external pure returns (bytes20);
+}
 
 interface IRegistries {
     function isPatient(address _patient) external view returns (bool);
@@ -30,12 +46,16 @@ interface IResourceCertification {
 }
 
 contract ResourcesSharingAgreement {
-    struct RSA {
-        bytes20 rsaId;
+    enum RsaState {
+        Pending,
+        Active
+    }
+
+    struct Rsa {
         address provider;
         address recipient;
         string recipientEmail;
-        RsaUtils.State state;
+        RsaState state;
         string duration;
         string[] sharedResources;
         bytes20[] observerAssignmentIds;
@@ -57,7 +77,7 @@ contract ResourcesSharingAgreement {
         address provider;
         address recipient;
         string recipientEmail;
-        RsaUtils.State state;
+        RsaState state;
         string duration;
         string[] sharedResources;
         ObserverAssignment[] observersAssignments;
@@ -66,21 +86,16 @@ contract ResourcesSharingAgreement {
         uint256 createdAt;
     }
 
-    mapping(bytes20 => RSA) public rsas;
+    mapping(bytes20 => Rsa) public rsas;
     mapping(address => bytes20[]) private providerRsas;
     mapping(address => bytes20[]) private recipientRsas;
     mapping(address => bytes20[]) private observerRsas;
 
     mapping(bytes20 => ObserverAssignment) private observerAssignments;
 
-    RsaUtils public utils;
+    IUtils public utils;
     IRegistries public registriesContract;
     IResourceCertification public resourceCertificationContract;
-
-    string private constant DURATION_HOUR = "1 hour";
-    string private constant DURATION_DAY = "1 day";
-    string private constant DURATION_MONTH = "1 month";
-    string private constant DURATION_YEAR = "1 year";
 
     event RsaCreated(
         bytes20 indexed rsaId,
@@ -158,7 +173,7 @@ contract ResourcesSharingAgreement {
         address _registriesContract,
         address _resourceCertificationContract
     ) {
-        utils = RsaUtils(_utilsContract);
+        utils = IUtils(_utilsContract);
         registriesContract = IRegistries(_registriesContract);
         resourceCertificationContract = IResourceCertification(
             _resourceCertificationContract
@@ -182,10 +197,7 @@ contract ResourcesSharingAgreement {
     }
 
     modifier onlyActive(bytes20 _rsaId) {
-        require(
-            rsas[_rsaId].state == RsaUtils.State.Active,
-            "RSA is not active"
-        );
+        require(rsas[_rsaId].state == RsaState.Active, "Rsa is not active");
         _;
     }
 
@@ -193,7 +205,7 @@ contract ResourcesSharingAgreement {
         bytes20 _rsaId,
         address _observer
     ) internal view returns (bool) {
-        RSA storage rsa = rsas[_rsaId];
+        Rsa storage rsa = rsas[_rsaId];
         bytes20[] storage assignmentIds = rsa.observerAssignmentIds;
 
         for (uint256 i = 0; i < assignmentIds.length; i++) {
@@ -211,7 +223,7 @@ contract ResourcesSharingAgreement {
         bytes20 _rsaId,
         string memory _observerEmail
     ) internal view returns (bool) {
-        RSA storage rsa = rsas[_rsaId];
+        Rsa storage rsa = rsas[_rsaId];
         bytes20[] storage assignmentIds = rsa.observerAssignmentIds;
 
         for (uint256 i = 0; i < assignmentIds.length; i++) {
@@ -232,7 +244,7 @@ contract ResourcesSharingAgreement {
         bytes20 _rsaId,
         bytes20 _assignmentId
     ) internal {
-        RSA storage rsa = rsas[_rsaId];
+        Rsa storage rsa = rsas[_rsaId];
         bytes20[] storage assignmentIds = rsa.observerAssignmentIds;
 
         for (uint256 i = 0; i < assignmentIds.length; i++) {
@@ -246,7 +258,7 @@ contract ResourcesSharingAgreement {
     }
 
     function _isSharedResource(
-        RSA storage rsa,
+        Rsa storage rsa,
         string memory _resourceId
     ) internal view returns (bool) {
         for (uint256 i = 0; i < rsa.sharedResources.length; i++) {
@@ -331,7 +343,7 @@ contract ResourcesSharingAgreement {
 
         require(
             rsas[rsaId].provider == address(0),
-            "RSA already exists between these parties"
+            "Rsa already exists between these parties"
         );
 
         require(
@@ -347,18 +359,17 @@ contract ResourcesSharingAgreement {
             require(subject == msg.sender, "Resource not owned by provider");
         }
 
-        RsaUtils.State initialState = bytes(_recipientEmail).length > 0 &&
+        RsaState initialState = bytes(_recipientEmail).length > 0 &&
             _recipient == address(0)
-            ? RsaUtils.State.Active
-            : RsaUtils.State.Pending;
+            ? RsaState.Active
+            : RsaState.Pending;
 
         uint256 durationInSeconds = utils.getDurationInSeconds(_duration);
-        uint256 expiresAt = (initialState == RsaUtils.State.Active)
+        uint256 expiresAt = (initialState == RsaState.Active)
             ? block.timestamp + durationInSeconds
             : 0;
 
-        rsas[rsaId] = RSA({
-            rsaId: rsaId,
+        rsas[rsaId] = Rsa({
             provider: msg.sender,
             recipient: _recipient,
             recipientEmail: _recipientEmail,
@@ -388,13 +399,10 @@ contract ResourcesSharingAgreement {
     }
 
     function cancelRsa(bytes20 _rsaId) external onlyProvider(_rsaId) {
-        RSA storage rsa = rsas[_rsaId];
-        require(rsa.provider != address(0), "Invalid RSA ID");
+        Rsa storage rsa = rsas[_rsaId];
+        require(rsa.provider != address(0), "Invalid Rsa ID");
 
-        require(
-            rsa.state == RsaUtils.State.Pending,
-            "Can only cancel a pending RSA"
-        );
+        require(rsa.state == RsaState.Pending, "Can only cancel a pending Rsa");
 
         address recipient = rsa.recipient;
 
@@ -408,13 +416,10 @@ contract ResourcesSharingAgreement {
     }
 
     function rejectRsa(bytes20 _rsaId) external onlyRecipient(_rsaId) {
-        RSA storage rsa = rsas[_rsaId];
-        require(rsa.provider != address(0), "Invalid RSA ID");
+        Rsa storage rsa = rsas[_rsaId];
+        require(rsa.provider != address(0), "Invalid Rsa ID");
 
-        require(
-            rsa.state == RsaUtils.State.Pending,
-            "Can only reject a pending RSA"
-        );
+        require(rsa.state == RsaState.Pending, "Can only reject a pending Rsa");
 
         address provider = rsa.provider;
 
@@ -428,12 +433,12 @@ contract ResourcesSharingAgreement {
     }
 
     function acceptRsa(bytes20 _rsaId) external onlyRecipient(_rsaId) {
-        RSA storage rsa = rsas[_rsaId];
-        require(rsa.provider != address(0), "Invalid RSA ID");
+        Rsa storage rsa = rsas[_rsaId];
+        require(rsa.provider != address(0), "Invalid Rsa ID");
 
-        require(rsa.state == RsaUtils.State.Pending, "RSA is not pending");
+        require(rsa.state == RsaState.Pending, "Rsa is not pending");
 
-        rsa.state = RsaUtils.State.Active;
+        rsa.state = RsaState.Active;
         rsa.expiresAt =
             block.timestamp +
             utils.getDurationInSeconds(rsa.duration);
@@ -442,12 +447,12 @@ contract ResourcesSharingAgreement {
     }
 
     function revokeRsa(bytes20 _rsaId) external {
-        RSA storage rsa = rsas[_rsaId];
-        require(rsa.provider != address(0), "Invalid RSA ID");
+        Rsa storage rsa = rsas[_rsaId];
+        require(rsa.provider != address(0), "Invalid Rsa ID");
 
         require(
             msg.sender == rsa.provider || msg.sender == rsa.recipient,
-            "Only provider or recipient can revoke RSA"
+            "Only provider or recipient can revoke Rsa"
         );
 
         address provider = rsa.provider;
@@ -492,7 +497,7 @@ contract ResourcesSharingAgreement {
         address _observer,
         string memory _observerEmail
     ) external onlyRecipient(_rsaId) onlyActive(_rsaId) {
-        RSA storage rsa = rsas[_rsaId];
+        Rsa storage rsa = rsas[_rsaId];
 
         require(rsa.secondOpinion, "Adding observers not allowed");
 
@@ -557,8 +562,8 @@ contract ResourcesSharingAgreement {
     }
 
     function acceptObserverAssignment(bytes20 _rsaId) external {
-        RSA storage rsa = rsas[_rsaId];
-        require(rsa.provider != address(0), "Invalid RSA ID");
+        Rsa storage rsa = rsas[_rsaId];
+        require(rsa.provider != address(0), "Invalid Rsa ID");
 
         bytes20[] storage assignmentIds = rsa.observerAssignmentIds;
         bool isObserver = false;
@@ -575,7 +580,7 @@ contract ResourcesSharingAgreement {
             }
         }
 
-        require(isObserver, "Caller is not an observer for this RSA");
+        require(isObserver, "Caller is not an observer for this Rsa");
 
         ObserverAssignment storage targetAssignment = observerAssignments[
             targetAssignmentId
@@ -595,8 +600,8 @@ contract ResourcesSharingAgreement {
     }
 
     function rejectObserverAssignment(bytes20 _rsaId) external {
-        RSA storage rsa = rsas[_rsaId];
-        require(rsa.provider != address(0), "Invalid RSA ID");
+        Rsa storage rsa = rsas[_rsaId];
+        require(rsa.provider != address(0), "Invalid Rsa ID");
 
         bytes20[] storage assignmentIds = rsa.observerAssignmentIds;
         bytes20 targetAssignmentId;
@@ -614,7 +619,7 @@ contract ResourcesSharingAgreement {
             }
         }
 
-        require(isObserver, "Caller is not an observer for this RSA");
+        require(isObserver, "Caller is not an observer for this Rsa");
 
         _removeObserverAssignment(_rsaId, targetAssignmentId);
         _removeRsaIdFromObserver(msg.sender, _rsaId);
@@ -633,8 +638,8 @@ contract ResourcesSharingAgreement {
         address _observer,
         string memory _observerEmail
     ) external {
-        RSA storage rsa = rsas[_rsaId];
-        require(rsa.provider != address(0), "Invalid RSA ID");
+        Rsa storage rsa = rsas[_rsaId];
+        require(rsa.provider != address(0), "Invalid Rsa ID");
 
         require(
             _observer != address(0) || bytes(_observerEmail).length > 0,
@@ -717,19 +722,19 @@ contract ResourcesSharingAgreement {
             "Caller is not a trusted issuer"
         );
 
-        RSA storage rsa = rsas[_rsaId];
+        Rsa storage rsa = rsas[_rsaId];
         address resourceOwner = rsa.provider;
-        require(resourceOwner != address(0), "Invalid RSA ID");
+        require(resourceOwner != address(0), "Invalid Rsa ID");
 
-        require(rsa.state == RsaUtils.State.Active, "RSA is not active");
+        require(rsa.state == RsaState.Active, "Rsa is not active");
 
         if (rsa.expiresAt > 0) {
-            require(block.timestamp <= rsa.expiresAt, "RSA has expired");
+            require(block.timestamp <= rsa.expiresAt, "Rsa has expired");
         }
 
         require(
             _isSharedResource(rsa, _resourceId),
-            "Resource ID not shared in this RSA"
+            "Resource ID not shared in this Rsa"
         );
 
         // Access Control
@@ -738,7 +743,7 @@ contract ResourcesSharingAgreement {
                 keccak256(bytes(rsa.recipientEmail)) ==
                     keccak256(bytes(_resourceAccessorEmail)) ||
                     _isObserverEmail(_rsaId, _resourceAccessorEmail),
-                "Email does not match RSA recipient email"
+                "Email does not match Rsa recipient email"
             );
         } else {
             require(
@@ -761,13 +766,9 @@ contract ResourcesSharingAgreement {
 
     /* VIEW FUNCTIONS */
 
-    function getRsaInfo(bytes20 _rsaId) external view returns (RsaInfo memory) {
-        RSA storage rsa = rsas[_rsaId];
-        return _getRsaInfo(rsa);
-    }
-
     function _getRsaInfo(
-        RSA memory _rsa
+        bytes20 _rsaId,
+        Rsa memory _rsa
     ) internal view returns (RsaInfo memory) {
         ObserverAssignment[]
             memory observersAssignments = new ObserverAssignment[](
@@ -780,7 +781,7 @@ contract ResourcesSharingAgreement {
         }
         return
             RsaInfo({
-                rsaId: _rsa.rsaId,
+                rsaId: _rsaId,
                 provider: _rsa.provider,
                 recipient: _rsa.recipient,
                 recipientEmail: _rsa.recipientEmail,
@@ -794,20 +795,23 @@ contract ResourcesSharingAgreement {
             });
     }
 
-    function getRsaById(bytes20 _rsaId) external view returns (RsaInfo memory) {
-        return _getRsaInfo(rsas[_rsaId]);
+    function getRsaInfo(bytes20 _rsaId) external view returns (RsaInfo memory) {
+        Rsa storage rsa = rsas[_rsaId];
+        return _getRsaInfo(_rsaId, rsa);
     }
 
-    function getRsaState(
-        bytes20 _rsaId
-    ) external view returns (RsaUtils.State) {
+    function getRsaById(bytes20 _rsaId) external view returns (RsaInfo memory) {
+        return _getRsaInfo(_rsaId, rsas[_rsaId]);
+    }
+
+    function getRsaState(bytes20 _rsaId) external view returns (RsaState) {
         return rsas[_rsaId].state;
     }
 
     function getObserverAssignments(
         bytes20 _rsaId
     ) external view returns (ObserverAssignment[] memory) {
-        RSA storage rsa = rsas[_rsaId];
+        Rsa storage rsa = rsas[_rsaId];
         bytes20[] storage assignmentIds = rsa.observerAssignmentIds;
 
         ObserverAssignment[] memory assignments = new ObserverAssignment[](

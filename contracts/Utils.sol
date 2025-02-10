@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-contract RsaUtils {
+contract Utils {
     enum State {
         Pending,
         Active
@@ -22,7 +22,25 @@ contract RsaUtils {
         string memory _recipientEmail
     ) external pure returns (bytes20) {
         return
-            ripemd160(abi.encodePacked(_provider, _recipient, _recipientEmail));
+            ripemd160(
+                abi.encodePacked(
+                    keccak256(
+                        abi.encodePacked(_provider, _recipient, _recipientEmail)
+                    )
+                )
+            );
+    }
+
+    function generateDsaId(
+        address _provider,
+        address _recipient
+    ) external pure returns (bytes20) {
+        return
+            ripemd160(
+                abi.encodePacked(
+                    keccak256(abi.encodePacked(_provider, _recipient))
+                )
+            );
     }
 
     function generateAssignmentId(
@@ -30,7 +48,14 @@ contract RsaUtils {
         uint256 _timestamp,
         uint256 _blockNumber
     ) external pure returns (bytes20) {
-        return ripemd160(abi.encodePacked(_rsaId, _timestamp, _blockNumber));
+        return
+            ripemd160(
+                abi.encodePacked(
+                    keccak256(
+                        abi.encodePacked(_rsaId, _timestamp, _blockNumber)
+                    )
+                )
+            );
     }
 
     function getDurationInSeconds(

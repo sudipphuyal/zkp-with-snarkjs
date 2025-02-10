@@ -1,31 +1,81 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "./RsaUtils.sol";
-import "./ResourcesSharingAgreement.sol";
+interface IUtils {
+    function generateHash(string memory input) external pure returns (bytes32);
+}
+
+interface IResourcesSharingAgreement {
+    enum RsaState {
+        Pending,
+        Active
+    }
+
+    struct ObserverAssignment {
+        bytes20 assignmentId;
+        address observerAddress;
+        string observerEmail;
+        bool accepted;
+        uint256 createdAt;
+    }
+
+    struct RsaInfo {
+        bytes20 rsaId;
+        address provider;
+        address recipient;
+        string recipientEmail;
+        RsaState state;
+        string duration;
+        string[] sharedResources;
+        ObserverAssignment[] observersAssignments;
+        bool secondOpinion;
+        uint256 expiresAt;
+        uint256 createdAt;
+    }
+
+    function getRsaState(bytes20 _rsaId) external view returns (RsaState);
+
+    function getRsaInfo(bytes20 _rsaId) external view returns (RsaInfo memory);
+
+    function getProviderRsas(
+        address _provider
+    ) external view returns (bytes20[] memory);
+
+    function getRecipientRsas(
+        address _recipient
+    ) external view returns (bytes20[] memory);
+
+    function getObserverRsas(
+        address _observer
+    ) external view returns (bytes20[] memory);
+
+    function getObserverAssignments(
+        bytes20 _rsaId
+    ) external view returns (ObserverAssignment[] memory);
+}
 
 contract RsaEnumerator {
-    RsaUtils public utils;
-    ResourcesSharingAgreement private rsaContract;
+    IUtils public utils;
+    IResourcesSharingAgreement private rsaContract;
 
     constructor(address _utilsContract, address _rsaContract) {
-        utils = RsaUtils(_utilsContract);
-        rsaContract = ResourcesSharingAgreement(_rsaContract);
+        utils = IUtils(_utilsContract);
+        rsaContract = IResourcesSharingAgreement(_rsaContract);
     }
 
     function _getStateFromString(
         string memory _stateFilter
-    ) private view returns (RsaUtils.State, bool) {
+    ) private view returns (IResourcesSharingAgreement.RsaState, bool) {
         if (utils.generateHash(_stateFilter) == utils.generateHash("ALL")) {
-            return (RsaUtils.State.Pending, false);
+            return (IResourcesSharingAgreement.RsaState.Pending, false);
         } else if (
             utils.generateHash(_stateFilter) == utils.generateHash("ACTIVE")
         ) {
-            return (RsaUtils.State.Active, true);
+            return (IResourcesSharingAgreement.RsaState.Active, true);
         } else if (
             utils.generateHash(_stateFilter) == utils.generateHash("PENDING")
         ) {
-            return (RsaUtils.State.Pending, true);
+            return (IResourcesSharingAgreement.RsaState.Pending, true);
         } else {
             revert("Invalid state filter");
         }
@@ -53,9 +103,10 @@ contract RsaEnumerator {
         address _provider,
         string memory _stateFilter
     ) external view returns (uint256) {
-        (RsaUtils.State targetState, bool applyFilter) = _getStateFromString(
-            _stateFilter
-        );
+        (
+            IResourcesSharingAgreement.RsaState targetState,
+            bool applyFilter
+        ) = _getStateFromString(_stateFilter);
 
         uint256 count = 0;
         bytes20[] memory rsaIds = rsaContract.getProviderRsas(_provider);
@@ -76,10 +127,11 @@ contract RsaEnumerator {
         string memory _stateFilter,
         uint256 _offset,
         uint256 _limit
-    ) external view returns (ResourcesSharingAgreement.RsaInfo[] memory) {
-        (RsaUtils.State targetState, bool applyFilter) = _getStateFromString(
-            _stateFilter
-        );
+    ) external view returns (IResourcesSharingAgreement.RsaInfo[] memory) {
+        (
+            IResourcesSharingAgreement.RsaState targetState,
+            bool applyFilter
+        ) = _getStateFromString(_stateFilter);
         bytes20[] memory rsaIds = rsaContract.getProviderRsas(_provider);
         uint256 resultCount = 0;
 
@@ -96,8 +148,8 @@ contract RsaEnumerator {
             }
         }
 
-        ResourcesSharingAgreement.RsaInfo[]
-            memory result = new ResourcesSharingAgreement.RsaInfo[](
+        IResourcesSharingAgreement.RsaInfo[]
+            memory result = new IResourcesSharingAgreement.RsaInfo[](
                 resultCount
             );
         uint256 index = 0;
@@ -123,9 +175,10 @@ contract RsaEnumerator {
         address _recipient,
         string memory _stateFilter
     ) external view returns (uint256) {
-        (RsaUtils.State targetState, bool applyFilter) = _getStateFromString(
-            _stateFilter
-        );
+        (
+            IResourcesSharingAgreement.RsaState targetState,
+            bool applyFilter
+        ) = _getStateFromString(_stateFilter);
 
         bytes20[] memory rsaIds = rsaContract.getRecipientRsas(_recipient);
 
@@ -147,10 +200,11 @@ contract RsaEnumerator {
         string memory _stateFilter,
         uint256 _offset,
         uint256 _limit
-    ) external view returns (ResourcesSharingAgreement.RsaInfo[] memory) {
-        (RsaUtils.State targetState, bool applyFilter) = _getStateFromString(
-            _stateFilter
-        );
+    ) external view returns (IResourcesSharingAgreement.RsaInfo[] memory) {
+        (
+            IResourcesSharingAgreement.RsaState targetState,
+            bool applyFilter
+        ) = _getStateFromString(_stateFilter);
 
         bytes20[] memory rsaIds = rsaContract.getRecipientRsas(_recipient);
 
@@ -169,8 +223,8 @@ contract RsaEnumerator {
             ? resultCount
             : start + _limit;
 
-        ResourcesSharingAgreement.RsaInfo[]
-            memory result = new ResourcesSharingAgreement.RsaInfo[](
+        IResourcesSharingAgreement.RsaInfo[]
+            memory result = new IResourcesSharingAgreement.RsaInfo[](
                 end - start
             );
         uint256 index = 0;
@@ -203,7 +257,7 @@ contract RsaEnumerator {
 
         uint256 count = 0;
         for (uint256 i = 0; i < rsaIds.length; i++) {
-            ResourcesSharingAgreement.ObserverAssignment[]
+            IResourcesSharingAgreement.ObserverAssignment[]
                 memory assignments = rsaContract.getObserverAssignments(
                     rsaIds[i]
                 );
@@ -228,7 +282,7 @@ contract RsaEnumerator {
         string memory _stateFilter,
         uint256 _offset,
         uint256 _limit
-    ) external view returns (ResourcesSharingAgreement.RsaInfo[] memory) {
+    ) external view returns (IResourcesSharingAgreement.RsaInfo[] memory) {
         (
             bool includeAccepted,
             bool includeNotAccepted
@@ -239,7 +293,7 @@ contract RsaEnumerator {
         uint256 resultCount = 0;
 
         for (uint256 i = 0; i < rsaIds.length; i++) {
-            ResourcesSharingAgreement.ObserverAssignment[]
+            IResourcesSharingAgreement.ObserverAssignment[]
                 memory assignments = rsaContract.getObserverAssignments(
                     rsaIds[i]
                 );
@@ -261,8 +315,8 @@ contract RsaEnumerator {
         uint256 end = start + _limit > resultCount
             ? resultCount
             : start + _limit;
-        ResourcesSharingAgreement.RsaInfo[]
-            memory result = new ResourcesSharingAgreement.RsaInfo[](
+        IResourcesSharingAgreement.RsaInfo[]
+            memory result = new IResourcesSharingAgreement.RsaInfo[](
                 end - start
             );
 
