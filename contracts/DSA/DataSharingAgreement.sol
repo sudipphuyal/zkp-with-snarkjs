@@ -77,10 +77,44 @@ contract DataSharingAgreement {
         address provider,
         address recipient
     );
+    event DsaRevoked(
+        bytes20 indexed dsaId,
+        address provider,
+        address recipient,
+        address caller
+    );
 
     constructor(address _utilsContract, address _registriesContract) {
         utils = IUtils(_utilsContract);
         registriesContract = IRegistries(_registriesContract);
+    }
+
+    function _removeDsaIdFromProvider(
+        bytes20 _dsaId,
+        address _provider
+    ) internal {
+        bytes20[] storage dsaIds = providerDsas[_provider];
+        for (uint256 i = 0; i < dsaIds.length; i++) {
+            if (dsaIds[i] == _dsaId) {
+                dsaIds[i] = dsaIds[dsaIds.length - 1];
+                dsaIds.pop();
+                break;
+            }
+        }
+    }
+
+    function _removeDsaIdFromRecipient(
+        bytes20 _dsaId,
+        address _recipient
+    ) internal {
+        bytes20[] storage dsaIds = recipientDsas[_recipient];
+        for (uint256 i = 0; i < dsaIds.length; i++) {
+            if (dsaIds[i] == _dsaId) {
+                dsaIds[i] = dsaIds[dsaIds.length - 1];
+                dsaIds.pop();
+                break;
+            }
+        }
     }
 
     function createDsa(
@@ -136,10 +170,14 @@ contract DataSharingAgreement {
 
     function burnDsa(bytes20 _dsaId) internal {
         require(dsas[_dsaId].provider != address(0), "DSA not found");
-        address provider = dsas[_dsaId].provider;
-        address recipient = dsas[_dsaId].recipient;
+
+        _removeDsaIdFromProvider(_dsaId, dsas[_dsaId].provider);
+
+        if (dsas[_dsaId].recipient != address(0)) {
+            _removeDsaIdFromRecipient(_dsaId, dsas[_dsaId].recipient);
+        }
+
         delete dsas[_dsaId];
-        emit DsaCancelled(_dsaId, provider, recipient);
     }
 
     function rejectDsa(bytes20 _dsaId) external {
@@ -148,7 +186,9 @@ contract DataSharingAgreement {
 
         address provider = dsas[_dsaId].provider;
         address recipient = dsas[_dsaId].recipient;
-        delete dsas[_dsaId];
+
+        burnDsa(_dsaId);
+
         emit DsaRejected(_dsaId, provider, recipient);
     }
 
@@ -156,7 +196,29 @@ contract DataSharingAgreement {
         require(dsas[_dsaId].provider == msg.sender, "Not the provider");
         require(dsas[_dsaId].state == DsaState.Pending, "Cannot cancel");
 
+        address provider = dsas[_dsaId].provider;
+        address recipient = dsas[_dsaId].recipient;
+
         burnDsa(_dsaId);
+
+        emit DsaCancelled(_dsaId, provider, recipient);
+    }
+
+    function revokeDsa(bytes20 _dsaId) external {
+        Dsa storage dsa = dsas[_dsaId];
+        require(dsa.provider != address(0), "Invalid Dsa ID");
+
+        require(
+            msg.sender == dsa.provider || msg.sender == dsa.recipient,
+            "Only provider or recipient can revoke Dsa"
+        );
+
+        address provider = dsa.provider;
+        address recipient = dsa.recipient;
+
+        burnDsa(_dsaId);
+
+        emit DsaRevoked(_dsaId, provider, recipient, msg.sender);
     }
 
     /* VIEW FUNCTIONS */
@@ -180,6 +242,7 @@ contract DataSharingAgreement {
 
     function getDsaInfo(bytes20 _dsaId) external view returns (DsaInfo memory) {
         Dsa storage dsa = dsas[_dsaId];
+        require(dsa.provider != address(0), "DSA not found");
         return _getDsaInfo(_dsaId, dsa);
     }
 
@@ -200,6 +263,7 @@ contract DataSharingAgreement {
     }
 
     function getDsaState(bytes20 _dsaId) external view returns (DsaState) {
+        require(dsas[_dsaId].provider != address(0), "DSA not found");
         return dsas[_dsaId].state;
     }
 
