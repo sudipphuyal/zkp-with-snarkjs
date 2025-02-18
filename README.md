@@ -28,7 +28,7 @@ Note: To run with a different account run with "PRIVATE_KEY=<OTHER_PRIVATE_KEY> 
 
 6) Run - npx hardhat ignition deploy ./ignition/modules/Utils.ts --network besu
 
-7) Copy contract address to RSA_UTILS_ADDRESS var in .env
+7) Copy contract address to UTILS_ADDRESS var in .env
 
 8) Run - npx hardhat ignition deploy ./ignition/modules/ResourceSharingAgreement.ts --network besu
 
@@ -38,7 +38,13 @@ Note: To run with a different account run with "PRIVATE_KEY=<OTHER_PRIVATE_KEY> 
 
 11) Copy contract address to RSA_ENUMERATOR_ADDRESS var in .env
 
+12) Run - npx hardhat ignition deploy ./ignition/modules/DataSharingAgreement.ts --network besu
 
+13) Copy contract address to DSA_ADDRESS var in .env
+
+14) Run - npx hardhat ignition deploy ./ignition/modules/DsaEnumerator.ts --network besu
+
+15) Copy contract address to DSA_ENUMERATOR_ADDRESS var in .env
 
 ## DEPLOY SEPOLIA
 
@@ -56,7 +62,7 @@ Note: To run with a different account run with "PRIVATE_KEY=<OTHER_PRIVATE_KEY> 
 
 6) Run - npx hardhat ignition deploy ./ignition/modules/Utils.ts --network sepolia
 
-7) Copy contract address to RSA_UTILS_ADDRESS var in .env
+7) Copy contract address to UTILS_ADDRESS var in .env
 
 8) Run - npx hardhat ignition deploy ./ignition/modules/ResourceSharingAgreement.ts --network sepolia
 

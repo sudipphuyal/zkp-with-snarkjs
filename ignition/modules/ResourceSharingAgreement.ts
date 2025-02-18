@@ -3,10 +3,10 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 const resourcesSharingAgreementModule = buildModule(
   "ResourcesSharingAgreementModule",
   (m) => {
-    const utilsAddress = process.env.RSA_UTILS_ADDRESS;
+    const utilsAddress = process.env.UTILS_ADDRESS;
     if (!utilsAddress) {
       throw new Error(
-        "Please provide the address of the Utils contract using the 'RSA_UTILS_ADDRESS' environment variable."
+        "Please provide the address of the Utils contract using the 'UTILS_ADDRESS' environment variable."
       );
     }
 
