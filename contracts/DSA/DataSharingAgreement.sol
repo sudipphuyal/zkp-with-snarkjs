@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
+import "../PatientIdVerifier.sol";
 
 interface IUtils {
     function generateDsaId(
@@ -102,6 +103,7 @@ contract DataSharingAgreement {
             }
         }
     }
+
 
     function _removeDsaIdFromRecipient(
         bytes20 _dsaId,

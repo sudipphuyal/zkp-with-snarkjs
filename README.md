@@ -71,3 +71,16 @@ Note: To run with a different account run with "PRIVATE_KEY=<OTHER_PRIVATE_KEY> 
 10) Run - npx hardhat ignition deploy ./ignition/modules/RsaEnumerator.ts --network sepolia
 
 11) Copy contract address to RSA_ENUMERATOR_ADDRESS var in .env
+
+
+
+
+## ZKP with Circom
+
+
+Compile the circuit - circom circuits/PatientIdProof.circom --r1cs --wasm --sym -l circomlib -o build/
+1) Generate Witness - node build/PatientIdProof_js/generate_witness.js build/PatientIdProof_js/PatientIdProof.wasm input.json build/witness.wtns
+2) Generate Proof - snarkjs groth16 prove build/PatientIdProof_final.zkey build/witness.wtns build/proof.json build/public.json
+3) Verify Proof - snarkjs groth16 verify build/verification_key.json build/public.json build/proof.json
+The verification uses only the publicly shared values
+4) Export Verifier - snarkjs zkey export solidityverifier build/PatientIdProof_final.zkey contracts/PatientIdVerifier.sol
