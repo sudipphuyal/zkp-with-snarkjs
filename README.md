@@ -84,3 +84,6 @@ Compile the circuit - circom circuits/PatientIdProof.circom --r1cs --wasm --sym 
 3) Verify Proof - snarkjs groth16 verify build/verification_key.json build/public.json build/proof.json
 The verification uses only the publicly shared values
 4) Export Verifier - snarkjs zkey export solidityverifier build/PatientIdProof_final.zkey contracts/PatientIdVerifier.sol
+
+Export Verfication key
+snarkjs zkey export verificationkey build/PatientIdProof_final.zkey verification_key.json

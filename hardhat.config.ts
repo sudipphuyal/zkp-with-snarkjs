@@ -56,11 +56,14 @@ const config: HardhatUserConfig = {
       url: `${process.env.SEPOLIA_NETWORK_URL}${process.env.ALCHEMY_API_KEY}`,
       accounts: [process.env.SEPOLIA_PRIVATE_KEY ?? ""],
     },
+    zkSync: {
+      url: "https://testnet.era.zksync.dev",
+      accounts: [process.env.ZKSYNC_PRIVATE_KEY ?? ""]
+  },
   },
   ignition: {
     blockPollingInterval: 1_000,
     requiredConfirmations: 1,
   },
 };
-
 export default config;
