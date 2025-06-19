@@ -12,12 +12,12 @@ describe("ZKProof Integration Test", function () {
     const verifier = await VerifierFactory.deploy();
 
     const MainContractFactory = await ethers.getContractFactory("MainContract");
-    const mainContract = await MainContractFactory.deploy(verifier.target); // .target for Ethers v6
+    const mainContract = await MainContractFactory.deploy(verifier.target); 
 
     const { a, b, c, input } = parseProofForSolidity(proof, publicSignals);
 
     const result = await mainContract.verifyAndDoSomething(a, b, c, input); // returns bool now
-    expect(result).to.equal(true); // ✅ Works now
+    expect(result).to.equal(true); 
   });
 });
 
