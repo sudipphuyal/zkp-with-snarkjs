@@ -79,7 +79,12 @@ Note: To run with a different account run with "PRIVATE_KEY=<OTHER_PRIVATE_KEY> 
 
 
 Compile the circuit - circom circuits/PatientIdProof.circom --r1cs --wasm --sym -l circomlib -o build/
-1) Generate Witness - node build/PatientIdProof_js/generate_witness.js build/PatientIdProof_js/PatientIdProof.wasm input.json build/witness.wtns
+1) 
+1.1) Generate Final zkey- snarkjs groth16 setup build/PatientIdProof.r1cs pot12_final.ptau build/PatientIdProof_0000.zkey
+1.2) then run this - snarkjs zkey contribute build/PatientIdProof_0000.zkey build/PatientIdProof_final.zkey --name="1st zkey contribution"
+1.2.1) export verification key - snarkjs zkey export verificationkey build/PatientIdProof_final.zkey build/verification_key.json
+
+1.3) Generate Witness - node build/PatientIdProof_js/generate_witness.js build/PatientIdProof_js/PatientIdProof.wasm input.json build/witness.wtns
 2) Generate Proof - snarkjs groth16 prove build/PatientIdProof_final.zkey build/witness.wtns build/proof.json build/public.json
 3) Verify Proof - snarkjs groth16 verify build/verification_key.json build/public.json build/proof.json
 The verification uses only the publicly shared values
